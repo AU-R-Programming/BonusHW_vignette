@@ -19,10 +19,85 @@ The functions made available allow to perform Granger-Causal testing for signals
 
 ## Data Pre-Processing
 
-XXX
+In this section we use data that was collected during an experiment that measured the time-evolved transcriptome of the three replicates of Arabidopsis roots and shoots. The data `raw_data` contains a matrix reporting a gene expression count for root and shoot collected at the following time points: 0, 5, 10, 15, 20, 30, 45, 60, 90 and 120 (minutes).
+
+```{r}
+data(raw_data)
+head(raw_data)
+```
+
+We decide to use the following simple functions to pre-process the data in this matrix (but other pre-processing techniques can be chosen).
+
+```{r, message=FALSE}
+library(mgcv)
+
+# Average signals at matching time points and then standardize
+avg <- function(signals) {
+
+  signal <- rep(NA, length(signals)/3)
+
+  for(i in 1:(length(signals)/3)) {
+
+    signal[i] <- mean(signals[(3*(i-1) + 1) : (3*i)])
+
+  }
+
+  signal_std <- (signal - mean(signal))/sd(signal)
+  
+  return(signal_std)
+
+}
+
+# Pre-processing function that uses GAM to detrend the signals and then uses previous function to aggregate and normalize
+pre_process <- function(dat_mat) {
+
+  root <- dat_mat[,1]
+  shoot <- dat_mat[,2]
+  time <- dat_mat[,3]
+
+  mod_root <- gam(root ~ s(time))
+  mod_shoot <- gam(shoot ~ s(time))
+
+  resid_root <- avg(resid(mod_root))
+  resid_shoot <- avg(resid(mod_shoot))
+
+  out <- list(root = resid_root, shoot = resid_shoot)
+
+  return(out)
+
+}
+```
+
+If we apply the `pre_process` function to the raw signals we obtain the following:
+
+```{r, cache=TRUE}
+signals <- pre_process(raw_data)
+signals
+```
+
+The result of the pre-processing is saved in the `signals` data made available with the `irg` package.
+
 
 ## Granger-Causal Testing
 
-XXX
+Once the signals have been pre-processed, it is possible to make use of the `irg` package functions and for this we make use of the pre-processed signals made available in the package: `arabidopsis`.
+
+```{r}
+data(arabidopsis)
+```
+
+This is a list containing two dataframes, for root (`$roots`) and shoot (`$shoots`) signals respectively, containing the gene expressions collected over the following time points: 0, 5, 10, 15, 20, 30, 45, 60, 90, 120 (in minutes). It can be noticed how the time intervals are irregular between measurements and therefore the `irg` package makes available a Granger-Causal testing framework for these specific settings.
+
+The main function of the package is the `granger_test` function. The null hypothesis for all tests that this function implements is the following:
+
+"$H_0$: The two signals have no Granger-Causal impact on each other."
+
+The goal of the function is to understand whether this null hypothesis can be rejected in favour of a specific alternative hypothesis, an example of which is given by:
+
+"$H_A$: The first signal (root) has a Granger-Causal impact on the second signal (shoot)".
+
+In order to perform this test of hypotheses, @heerah2021granger put forward a bivariate autoregressive model for irregularly sampled signals mainly characterized by the following parameter vector (other parameters not in this vector are implicitly defined in the function):
+
+
 
 ## References
