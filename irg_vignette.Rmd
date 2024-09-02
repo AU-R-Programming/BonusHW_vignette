@@ -98,6 +98,48 @@ The goal of the function is to understand whether this null hypothesis can be re
 
 In order to perform this test of hypotheses, @heerah2021granger put forward a bivariate autoregressive model for irregularly sampled signals mainly characterized by the following parameter vector (other parameters not in this vector are implicitly defined in the function):
 
+$equation$
+
+The subscripts "root" and "shoot" underline how these parameters contribute to the behaviour over time of either the first signal (root) or second signal (shoot). While the $\phi$ and $\sigma^2$ parameters are specific to the dependence of a signal only on its own past (and represent the range of dependence on the past and the residual variance respectively), the main parameters of interest for the mentioned Granger-Causal testing framework are the $\psi$ and $\gamma$ parameters which represent the "intensity" and "time" of maximal (Granger-Causal) impact of one signal on the other. More specifically, $\psi \in (-1, 1)$ can be interpreted similarly to Pearson’s correlation coefficient: the closer the value is to 1 (in absolute value) the greater is the impact of one signal on the other, while the sign represents the direction of the impact where, for example, a negative value implies that the impacted signal grows as the "causing" signal descreases (and viceversa). The $\gamma \in \mathbb{R}^+$ parameter instead represents the distance in time at which the impact of one signal on the other is maximal (under the assumption that the impact increases and then decreases monotonically over time). So, for example, $\psi_{root}$ represents the intensity of the impact of the shoot (second signal) on the root (first signal) while $\gamma_{root}$ represents the time required for the impact of the shoot on the root to be maximal.
+
+Estimating the parameters of these models via maximum-likelihood (under a Gaussian assumption), it is then possible to perform a Likelihood Ratio Test (LRT) to understand if the model under the alternative hypothesis significantly improves the fit of the signals. Given the short length of signals usually measured in biological experiments, the LRT test is performed using parametric bootstrap to approximate the small sample distribution under the null hypothesis. This procedure is performed by the `granger_test` function whose syntax is given below:
+
+```{r, eval=FALSE}
+granger_test(root, shoot, times, theta = NULL, alternative = "twodir", H = 100, seed = 123, showprogress = TRUE)
+```
+
+The first two arguments are the first (root) and second (shoot) signals for which we want to test a Granger-Causal relationship. The times argument is the numeric vector containing the time points at which the measurements were taken (in the same unit of time) while theta represents numeric vector (of length 8) containing the starting values for the parameter vector 𝜃described earlier (if left empty, the starting values will be estimated by the function itself). The alternative argument represents the alternative hypothesis we’re interested in testing: by default we have alternative = "twodir" which indicates that we’re testing the alternative hypothesis:
+
+"𝐻𝐴: The two signals have a Granger-Causal impact on each other”.
+
+The other possible alternative syntax is the following:
+
+1. `"rtos"`: "$H_A$: the first signal (root) has a Granger-Causal impact on the second signal (shoot)".
+2. `"stor"`: "$H_A$: the second signal (shoot) has a Granger-Causal impact on the first signal (root)".
+
+The final arguments to the function concern the parametric bootstrap procedure used to generate the null distribution:
+
+* `H`: the number of bootstrap replicates. The larger this number is, the better the approximation of the null distribution but the slower the procedure will be to perform the test.
+* `seed`: the seed value used to generate the signals for the bootstrap distribution. A fixed seed allows to replicate the exact results of the test.
+* `showprogress`: a boolean parameter allowing to visualize (or not) a progress bar to update the user on the progress of the bootstrap procedure (particularly useful with large values of H and/or longer signals).
+
+To perform this parametric bootstrap procedure, the granger_test uses the sim_proc function also made available by the irg package. Let us suppose that we want to simulate bivariate signals from the above mentioned model where only the second signal (shoot) has a Granger-Causal impact on the first and are measured at the same time points as the arabidopsis data also mentioned earlier. Then we could simulate this process as follows:
+
+```{r}
+theta_sim <- c(1, 0.99, 10, 0.01, 1, 0, 0, 0.1) # the parameter vector used to simulate data
+times <- c(0, 5, 10, 15, 20, 30, 45, 60, 90, 120) # the measurement time points
+
+set.seed(223) # set seed for example replicability
+sim <- sim_proc(theta_sim, times) # simulate the bivariate time series
+```
+
+It can be noticed how the values for 𝜓𝑠ℎ𝑜𝑜𝑡 and 𝛾𝑠ℎ𝑜𝑜𝑡 are zero, indicating that the first signal (root) has no impact on the second (shoot). The object sim is a list containing the simulated values for the first signal (`$root`) and second signal (`$shoot`) and can now be used within the granger_test function as follows:
+
+```{r, cache=TRUE}
+granger_test(root = sim$root, shoot = sim$shoot, times = times, alternative = "stor", H = 100, showprogress = FALSE)
+```
 
 
 ## References
+
+This package is developed based on the work put forward in @heerah2021granger.

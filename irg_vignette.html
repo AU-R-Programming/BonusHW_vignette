@@ -484,9 +484,108 @@ has a Granger-Causal impact on the second signal (shoot)”.</p>
 autoregressive model for irregularly sampled signals mainly
 characterized by the following parameter vector (other parameters not in
 this vector are implicitly defined in the function):</p>
+<p><span class="math inline">\(equation\)</span></p>
+<p>The subscripts “root” and “shoot” underline how these parameters
+contribute to the behaviour over time of either the first signal (root)
+or second signal (shoot). While the <span class="math inline">\(\phi\)</span> and <span class="math inline">\(\sigma^2\)</span> parameters are specific to the
+dependence of a signal only on its own past (and represent the range of
+dependence on the past and the residual variance respectively), the main
+parameters of interest for the mentioned Granger-Causal testing
+framework are the <span class="math inline">\(\psi\)</span> and <span class="math inline">\(\gamma\)</span> parameters which represent the
+“intensity” and “time” of maximal (Granger-Causal) impact of one signal
+on the other. More specifically, <span class="math inline">\(\psi \in
+(-1, 1)\)</span> can be interpreted similarly to Pearson’s correlation
+coefficient: the closer the value is to 1 (in absolute value) the
+greater is the impact of one signal on the other, while the sign
+represents the direction of the impact where, for example, a negative
+value implies that the impacted signal grows as the “causing” signal
+descreases (and viceversa). The <span class="math inline">\(\gamma \in
+\mathbb{R}^+\)</span> parameter instead represents the distance in time
+at which the impact of one signal on the other is maximal (under the
+assumption that the impact increases and then decreases monotonically
+over time). So, for example, <span class="math inline">\(\psi_{root}\)</span> represents the intensity of
+the impact of the shoot (second signal) on the root (first signal) while
+<span class="math inline">\(\gamma_{root}\)</span> represents the time
+required for the impact of the shoot on the root to be maximal.</p>
+<p>Estimating the parameters of these models via maximum-likelihood
+(under a Gaussian assumption), it is then possible to perform a
+Likelihood Ratio Test (LRT) to understand if the model under the
+alternative hypothesis significantly improves the fit of the signals.
+Given the short length of signals usually measured in biological
+experiments, the LRT test is performed using parametric bootstrap to
+approximate the small sample distribution under the null hypothesis.
+This procedure is performed by the <code>granger_test</code> function
+whose syntax is given below:</p>
+<pre class="r"><code>granger_test(root, shoot, times, theta = NULL, alternative = &quot;twodir&quot;, H = 100, seed = 123, showprogress = TRUE)</code></pre>
+<p>The first two arguments are the first (root) and second (shoot)
+signals for which we want to test a Granger-Causal relationship. The
+times argument is the numeric vector containing the time points at which
+the measurements were taken (in the same unit of time) while theta
+represents numeric vector (of length 8) containing the starting values
+for the parameter vector 𝜃described earlier (if left empty, the starting
+values will be estimated by the function itself). The alternative
+argument represents the alternative hypothesis we’re interested in
+testing: by default we have alternative = “twodir” which indicates that
+we’re testing the alternative hypothesis:</p>
+<p>“𝐻𝐴: The two signals have a Granger-Causal impact on each other”.</p>
+<p>The other possible alternative syntax is the following:</p>
+<ol style="list-style-type: decimal">
+<li><code>&quot;rtos&quot;</code>: “<span class="math inline">\(H_A\)</span>: the
+first signal (root) has a Granger-Causal impact on the second signal
+(shoot)”.</li>
+<li><code>&quot;stor&quot;</code>: “<span class="math inline">\(H_A\)</span>: the
+second signal (shoot) has a Granger-Causal impact on the first signal
+(root)”.</li>
+</ol>
+<p>The final arguments to the function concern the parametric bootstrap
+procedure used to generate the null distribution:</p>
+<ul>
+<li><code>H</code>: the number of bootstrap replicates. The larger this
+number is, the better the approximation of the null distribution but the
+slower the procedure will be to perform the test.</li>
+<li><code>seed</code>: the seed value used to generate the signals for
+the bootstrap distribution. A fixed seed allows to replicate the exact
+results of the test.</li>
+<li><code>showprogress</code>: a boolean parameter allowing to visualize
+(or not) a progress bar to update the user on the progress of the
+bootstrap procedure (particularly useful with large values of H and/or
+longer signals).</li>
+</ul>
+<p>To perform this parametric bootstrap procedure, the granger_test uses
+the sim_proc function also made available by the irg package. Let us
+suppose that we want to simulate bivariate signals from the above
+mentioned model where only the second signal (shoot) has a
+Granger-Causal impact on the first and are measured at the same time
+points as the arabidopsis data also mentioned earlier. Then we could
+simulate this process as follows:</p>
+<pre class="r"><code>theta_sim &lt;- c(1, 0.99, 10, 0.01, 1, 0, 0, 0.1) # the parameter vector used to simulate data
+times &lt;- c(0, 5, 10, 15, 20, 30, 45, 60, 90, 120) # the measurement time points
+
+set.seed(223) # set seed for example replicability
+sim &lt;- sim_proc(theta_sim, times) # simulate the bivariate time series</code></pre>
+<p>It can be noticed how the values for 𝜓𝑠ℎ𝑜𝑜𝑡 and 𝛾𝑠ℎ𝑜𝑜𝑡 are zero,
+indicating that the first signal (root) has no impact on the second
+(shoot). The object sim is a list containing the simulated values for
+the first signal (<code>$root</code>) and second signal
+(<code>$shoot</code>) and can now be used within the granger_test
+function as follows:</p>
+<pre class="r"><code>granger_test(root = sim$root, shoot = sim$shoot, times = times, alternative = &quot;stor&quot;, H = 100, showprogress = FALSE)</code></pre>
+<pre><code>## $alternative
+## [1] &quot;stor&quot;
+## 
+## $stat
+## [1] 31.25822
+## 
+## $pvalue
+## [1] 0.00990099
+## 
+## $parameters
+##   Shoot to Root Intensity Shoot to Root Impact Time 
+##                 0.9999624                10.3444944</code></pre>
 </div>
-<div id="references" class="section level2 unnumbered">
-<h2 class="unnumbered">References</h2>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>This package is developed based on the work put forward in <span class="citation">Heerah et al. (2021)</span>.</p>
 <div id="refs" class="references csl-bib-body hanging-indent">
 <div id="ref-heerah2021granger" class="csl-entry">
 Heerah, Sachin, Roberto Molinari, Stéphane Guerrier, and Amy
